@@ -1,0 +1,71 @@
+rm(list = ls())
+
+############### Function to be run ##############
+
+con.zo <- function(x){
+x <- (ifelse(x <= 6,-1,
+              ifelse((x == 7 | x == 8),0
+                     ,ifelse(x > 8,1,NA))))
+return(x)
+}
+
+t.ci.bs.f <- function(Series1.c, Series2.c){
+  A <- sample(Series1.c, length(Series1.c), replace=T)  
+  B <- sample(Series2.c, length(Series2.c), replace=T) 
+  stud_test <- t.test(A, B, var.equal=FALSE)
+  ci  <- stud_test$conf.int
+  return(ci)
+}
+
+t.statistic.bs.f <- function(Series1.c, Series2.c){
+  A <- sample(Series1.c, length(Series1.c), replace=T)  
+  B <- sample(Series2.c, length(Series2.c), replace=T) 
+  stud_test <- t.test(A, B, var.equal=FALSE)
+  t <- stud_test$statistic
+  return(t)
+}
+
+bs <- function(x,y){  
+  Series1 <- con.zo(Series1)
+  nps1 <- mean(Series1)
+  Series2 <- con.zo(Series2)
+  nps2 <- mean(Series2)
+  
+  t.test.ori <- t.test(Series1, Series2, var.equal=FALSE)
+  t.statistic.ori <- t.test.ori$statistic
+  t.ci.ori <- t.test.ori$conf.int
+  p.value.ori <- t.test.ori$p.value
+  
+  Series1.c <- Series1 - mean(Series1)
+  Series2.c <- Series2 - mean(Series2)
+  
+  
+  t.ci.bs <- replicate(10000, t.ci.bs.f(Series1.c, Series2.c))
+  t.ci.bs.trans <- t(t.ci.bs)
+  contain.zero <- ifelse((t.ci.bs.trans[,1] <= 0 & t.ci.bs.trans[,2] > 0),1,0)
+  mean.contain.zero <- mean(contain.zero)
+  
+  t.statistic.bs <- replicate(10000, t.statistic.bs.f(Series1.c, Series2.c))
+  t.statistic.bs.mean <- mean(t.statistic.bs)
+  p.value.bs <- (sum(abs(t.statistic.bs) >= abs(t.statistic.ori)))/10000
+  output <- list("nps1" = nps1, "nps2" = nps2,  "Original.t.stat" = t.statistic.ori, 
+                 "mean of bs t.stat" = t.statistic.bs.mean, 
+                 "% interval containing zero" = mean.contain.zero,"Original.p.value" = p.value.ori, 
+                 "boost.p.value" = p.value.bs)
+  return(output)
+}
+
+######### load data with NET Score running from 0-10 #########
+
+SIAB_Seller <- read.csv("SIAB_Seller.csv")
+x <- subset(SIAB_Seller,QTR == "2015Q1")
+y <- subset(SIAB_Seller,QTR == "2015Q2")
+
+Series1 <- x[,2]
+Series1 <- na.omit(Series1)
+Series2 <- y[,2]
+Series2 <- na.omit(Series2)
+
+results <- bs(x,y)
+results
+
